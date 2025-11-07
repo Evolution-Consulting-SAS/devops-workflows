@@ -43,6 +43,7 @@ jobs:
 
             echo "==> Actualizando código desde Git..."
             git pull origin development
+            cd ..
 
             echo "==> Compilando proyecto..."
             sudo mvn -f ${{ inputs.PROJECT_FOLDER }}/pom.xml clean package -DskipTests
