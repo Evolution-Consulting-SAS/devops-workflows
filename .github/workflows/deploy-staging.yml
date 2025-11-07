@@ -1,3 +1,5 @@
+name: Deploy to Staging EC2
+
 on:
   workflow_call:
     inputs:
@@ -18,26 +20,42 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      # --- Paso 1: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
+      # --- Paso 2: Crear y proteger la llave privada temporal
       - name: Set up SSH key
         run: |
           echo "${{ secrets.EC2_TEST_SSH_KEY }}" > private_key.pem
           chmod 600 private_key.pem
 
-      - name: Deploy to EC2 (Development)
+      # --- Paso 3: Conectarse al servidor y ejecutar el despliegue
+      - name: Deploy to EC2 (staging)
         run: |
-          ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.EC2_TEST_USER }}@${{ secrets.EC2_TEST_HOST }} << EOF
-            set -e
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.EC2_TEST_USER }}@${{ secrets.EC2_TEST_HOST }} << 'EOF'
+            set -e  # Termina el script si ocurre un error
+
             echo "==> Conectado a la máquina de pruebas AWS"
-            cd ecpay/ECPAY2_RD/${{ inputs.PROJECT_FOLDER }}
+            cd ~/ecpay/ECPAY2_RD/${{ inputs.PROJECT_FOLDER }}
+
+            echo "==> Actualizando código desde Git..."
             git pull origin development
-            cd ..
+
+            echo "==> Compilando proyecto..."
             sudo mvn -f ${{ inputs.PROJECT_FOLDER }}/pom.xml clean package -DskipTests
+
+            echo "==> Actualizando contenedor Docker..."
             sudo docker-compose down ${{ inputs.DOCKER_SERVICE_NAME }}
             sudo docker-compose build ${{ inputs.DOCKER_SERVICE_NAME }}
-            sudo docker-compose up -d ${{ inputs.DOCKER.SERVICE_NAME }}
+            sudo docker-compose up -d ${{ inputs.DOCKER_SERVICE_NAME }}
+
             echo "==> Despliegue completado exitosamente"
           EOF
+
+      # --- Paso 4: Limpieza de la llave privada 
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f private_key.pem
