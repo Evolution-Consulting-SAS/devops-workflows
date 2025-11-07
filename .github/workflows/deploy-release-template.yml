@@ -1,0 +1,67 @@
+name: Deploy to Production EC2 via Bastion
+
+on:
+  workflow_call:
+    inputs:
+      DOCKER_SERVICE_NAME:
+        required: true
+        type: string
+      PROJECT_FOLDER:
+        required: true
+        type: string
+    secrets:
+      BASTION_SSH_KEY:
+        required: true
+      BASTION_HOST:
+        required: true
+      BASTION_USER:
+        required: true
+      EC2_PROD_SSH_KEY:
+        required: true
+      EC2_PROD_HOST:
+        required: true
+      EC2_PROD_USER:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    
+      - name: Configure Bastion SSH key
+        run: |
+          echo "${{ secrets.BASTION_SSH_KEY }}" > bastion_key.pem
+          chmod 600 bastion_key.pem
+
+      - name: Deploy through Bastion
+        run: |
+          ssh -o StrictHostKeyChecking=no -i bastion_key.pem ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} << 'EOF'
+            set -e
+
+            echo "==> Conectado al Bastión"
+
+            # Crear temporalmente la llave de conexión a producción
+            echo "${{ secrets.EC2_PROD_SSH_KEY }}" > prod_key.pem
+            chmod 600 prod_key.pem
+
+            # Conectarse al servidor productivo desde el bastión
+            ssh -o StrictHostKeyChecking=no -i prod_key.pem ${{ secrets.EC2_PROD_USER }}@${{ secrets.EC2_PROD_HOST }} << 'INNER_EOF'
+              set -e
+              echo "==> Conectado al servidor productivo"
+
+              cd ecpay/ECPAY2_RD/${{ inputs.PROJECT_FOLDER }}
+              git pull origin release
+              cd ..
+
+              sudo mvn -f ${{ inputs.PROJECT_FOLDER }}/pom.xml clean package -DskipTests
+              sudo docker-compose down ${{ inputs.DOCKER_SERVICE_NAME }}
+              sudo docker-compose build ${{ inputs.DOCKER_SERVICE_NAME }}
+              sudo docker-compose up -d ${{ inputs.DOCKER_SERVICE_NAME }}
+
+              echo "==> Despliegue completado exitosamente"
+            INNER_EOF
+
+            # Eliminar llave temporal por seguridad
+            rm -f prod_key.pem
+          EOF
