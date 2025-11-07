@@ -22,17 +22,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # --- Paso 1: Checkout
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
-      # --- Paso 2: Crear y proteger la llave privada temporal
+      # --- Paso 1: Crear y proteger la llave privada temporal
       - name: Set up SSH key
         run: |
           echo "${{ secrets.EC2_TEST_SSH_KEY }}" > private_key.pem
           chmod 600 private_key.pem
 
-      # --- Paso 3: Conectarse al servidor y ejecutar el despliegue
+      # --- Paso 2: Conectarse al servidor y ejecutar el despliegue
       - name: Deploy to EC2 (staging)
         run: |
           ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.EC2_TEST_USER }}@${{ secrets.EC2_TEST_HOST }} << 'EOF'
@@ -56,7 +53,7 @@ jobs:
             echo "==> Despliegue completado exitosamente"
           EOF
 
-      # --- Paso 4: Limpieza de la llave privada 
+      # --- Paso 3: Limpieza de la llave privada 
       - name: Clean up SSH key
         if: always()
         run: rm -f private_key.pem
