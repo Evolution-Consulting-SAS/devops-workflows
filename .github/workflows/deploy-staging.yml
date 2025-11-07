@@ -1,0 +1,43 @@
+on:
+  workflow_call:
+    inputs:
+      DOCKER_SERVICE_NAME:
+        required: true
+        type: string
+      PROJECT_FOLDER:
+        required: true
+        type: string
+    secrets:
+      EC2_TEST_HOST:
+        required: true
+      EC2_TEST_USER:
+        required: true
+      EC2_TEST_SSH_KEY:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          echo "${{ secrets.EC2_TEST_SSH_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+
+      - name: Deploy to EC2 (Development)
+        run: |
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.EC2_TEST_USER }}@${{ secrets.EC2_TEST_HOST }} << EOF
+            set -e
+            echo "==> Conectado a la máquina de pruebas AWS"
+            cd ecpay/ECPAY2_RD/${{ inputs.PROJECT_FOLDER }}
+            git pull origin development
+            cd ..
+            sudo mvn -f ${{ inputs.PROJECT_FOLDER }}/pom.xml clean package -DskipTests
+            sudo docker-compose down ${{ inputs.DOCKER_SERVICE_NAME }}
+            sudo docker-compose build ${{ inputs.DOCKER_SERVICE_NAME }}
+            sudo docker-compose up -d ${{ inputs.DOCKER.SERVICE_NAME }}
+            echo "==> Despliegue completado exitosamente"
+          EOF
