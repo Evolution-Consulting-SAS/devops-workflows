@@ -2,13 +2,6 @@ name: Deploy to Staging EC2
 
 on:
   workflow_call:
-    inputs:
-      DOCKER_SERVICE_NAME:
-        required: true
-        type: string
-      PROJECT_FOLDER:
-        required: true
-        type: string
     secrets:
       EC2_TEST_HOST:
         required: true
@@ -22,38 +15,44 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # --- Paso 1: Configurar variables útiles
+      - name: Print context info
+        run: |
+          echo "Repo: ${{ github.event.repository.name }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
 
-      # --- Paso 1: Crear y proteger la llave privada temporal
+      # --- Paso 2: Crear y proteger la llave privada temporal
       - name: Set up SSH key
         run: |
           echo "${{ secrets.EC2_TEST_SSH_KEY }}" > private_key.pem
           chmod 600 private_key.pem
 
-      # --- Paso 2: Conectarse al servidor y ejecutar el despliegue
+      # --- Paso 3: Conectarse al servidor y ejecutar el despliegue
       - name: Deploy to EC2 (staging)
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+          BRANCH_NAME: ${{ github.ref_name }}
         run: |
           ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.EC2_TEST_USER }}@${{ secrets.EC2_TEST_HOST }} << 'EOF'
-            set -e  # Termina el script si ocurre un error
+            set -e  # Terminar el script si algo falla
 
             echo "==> Conectado a la máquina de pruebas AWS"
-            cd ~/ecpay/ECPAY2_RD/${{ inputs.PROJECT_FOLDER }}
+
+            cd ~/ecpay/ECPAY2_RD/${REPO_NAME}
 
             echo "==> Actualizando código desde Git..."
-            git pull origin development
-            cd ..
+            git fetch origin ${BRANCH_NAME}
+            git checkout ${BRANCH_NAME}
+            git pull origin ${BRANCH_NAME}
 
-            echo "==> Compilando proyecto..."
-            sudo mvn -f ${{ inputs.PROJECT_FOLDER }}/pom.xml clean package -DskipTests
-
-            echo "==> Actualizando contenedor Docker..."
-            sudo docker-compose down ${{ inputs.DOCKER_SERVICE_NAME }}
-            sudo docker-compose build ${{ inputs.DOCKER_SERVICE_NAME }}
-            sudo docker-compose up -d ${{ inputs.DOCKER_SERVICE_NAME }}
+            echo "==> Ejecutando tool_deploy.sh..."
+            ./tool_deploy.sh
 
             echo "==> Despliegue completado exitosamente"
           EOF
 
-      # --- Paso 3: Limpieza de la llave privada 
+      # --- Paso 4: Limpieza de la llave privada
       - name: Clean up SSH key
         if: always()
         run: rm -f private_key.pem
