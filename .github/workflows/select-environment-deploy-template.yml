@@ -1,0 +1,20 @@
+name: Select deploy environment template
+
+on:
+  workflow_call:
+  
+jobs:
+  deploy_release:
+    if: ${{ github.ref_name == 'release' }}
+    uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/deploy-release-template.yml@release
+    secrets: inherit
+    
+  deploy_staging:
+    if: ${{ github.ref_name == 'development' }}
+    uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/deploy-staging-template.yml@release
+    secrets: inherit
+
+  # deploy_development:
+  #   if: ${{ github.ref_name == 'development' }}
+  #   uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/deploy-development-template.yml@release
+  #   secrets: inherit
