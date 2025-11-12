@@ -46,6 +46,9 @@ jobs:
             git checkout ${BRANCH_NAME}
             git pull origin ${BRANCH_NAME}
 
+            echo "==> Asignando permisos de ejecución al script de despliegue..."
+            chmod +x tool_deploy.sh
+
             echo "==> Ejecutando tool_deploy.sh..."
             ./tool_deploy.sh
 
