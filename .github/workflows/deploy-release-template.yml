@@ -1,14 +1,7 @@
 name: Deploy to Production EC2 via Bastion
 
 on:
-  workflow_call:
-    inputs:
-      DOCKER_SERVICE_NAME:
-        required: true
-        type: string
-      PROJECT_FOLDER:
-        required: true
-        type: string
+  workflow_call:   
     secrets:
       BASTION_SSH_KEY:
         required: true
