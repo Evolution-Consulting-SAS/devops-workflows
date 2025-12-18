@@ -6,15 +6,15 @@ on:
 jobs:
 #  deploy_release:
 #    if: ${{ github.ref_name == 'release' }}
-#    uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/deploy-release-template.yml@release
+#    uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/ECPAY2-deploy-release-template.yml@release
 #    secrets: inherit
     
   deploy_staging:
     if: ${{ github.ref_name == 'staging' }}
-    uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/deploy-staging-template.yml@release
+    uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/ECPAY2-deploy-staging-template.yml@release
     secrets: inherit
 
   # deploy_development:
   #   if: ${{ github.ref_name == 'development' }}
-  #   uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/deploy-development-template.yml@release
+  #   uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/ECPAY2-deploy-development-template.yml@release
   #   secrets: inherit
