@@ -1,4 +1,4 @@
-name: Deploy to Staging EC2
+name: ECPAY2 Deploy to Staging EC2
 
 on:
   workflow_call:
