@@ -1,4 +1,4 @@
-name: Deploy to Production EC2 via Bastion
+name: ECPAY2 Deploy to Production EC2 via Bastion
 
 on:
   workflow_call:   
