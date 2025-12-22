@@ -303,6 +303,9 @@ sudo docker-compose up -d reports_v2_service
     - El contenedor actualizado queda desplegado
 7. El proceso de despliegue finaliza exitosamente
 
+### Diagrama del flujo de despliegue
+![Diagrama del flujo de despliegue](DiagramaDevops.png)
+
 ## 6. Secretos (nivel Organización)
 
 Para garantizar la **seguridad de la infraestructura** y evitar la exposición de credenciales sensibles en los repositorios, este flujo de automatización hace uso de **GitHub Secrets definidos a nivel de organización**.
