@@ -1,7 +1,7 @@
 # Automatización de Despliegues con GitHub Actions  
-## Sistema ECPAY2
+## Evolution Consulting - DevOps Workflows
 
-Este repositorio contiene la implementación del flujo de **automatización de despliegues** para los microservicios del sistema **ECPAY2**, utilizando **GitHub Actions** y **workflows reutilizables**.
+Este repositorio contiene la implementación del flujo de **automatización de despliegues** utilizado por los sistemas de **Evolution Consulting**, basado en **GitHub Actions** y **workflows reutilizables**.
 
 El objetivo principal de esta solución es:
 - Centralizar la lógica de despliegue
@@ -10,13 +10,17 @@ El objetivo principal de esta solución es:
 - Permitir que nuevos microservicios se integren fácilmente al proceso de despliegue automático
 - Garantizar trazabilidad y consistencia entre ramas y entornos
 
-Esta documentación describe **cómo funciona el flujo**, **qué componentes intervienen** y **qué requisitos debe cumplir cada microservicio** para integrarse correctamente.
+Este repositorio **no despliega directamente microservicios**, sino que actúa como un **repositorio central de plantillas DevOps**, consumidas por los distintos repositorios de la organización.
+
+A lo largo del documento se utiliza el sistema **ECPAY2** como **ejemplo**, pero la arquitectura aplica a cualquier sistema de Evolution Consulting.
 
 ---
 
 ## 1. Relación entre ramas y entornos
 
-El sistema ECPAY2 sigue un flujo basado en **Gitflow**, donde cada rama principal del repositorio está asociada a un entorno de despliegue específico:
+Los sistemas de Evolution Consulting siguen un flujo de trabajo basado en **Gitflow**, donde cada rama principal del repositorio representa un entorno específico.
+
+Ejemplo aplicado al sistema **ECPAY2**:
 
 - **development**  
   Entorno local de la empresa (servidor en oficina).  
@@ -24,11 +28,11 @@ El sistema ECPAY2 sigue un flujo basado en **Gitflow**, donde cada rama principa
 
 - **staging**  
   Entorno de pruebas desplegado en una instancia **EC2 de AWS**.  
-  Este entorno **sí está automatizado** mediante GitHub Actions.
+  **Automatizado** mediante GitHub Actions.
 
 - **release**  
   Entorno productivo desplegado en una instancia **EC2 de AWS**, accedida a través de un **bastión**.  
-  Este entorno **sí está automatizado** mediante GitHub Actions.
+  **Automatizado** mediante GitHub Actions.
 
 Cada vez que se realiza un `push` o se acepta un Pull Request en alguna de estas ramas, se puede disparar automáticamente el flujo de despliegue correspondiente.
 
@@ -36,7 +40,7 @@ Cada vez que se realiza un `push` o se acepta un Pull Request en alguna de estas
 
 ## 2. Enfoque general de la automatización
 
-En lugar de definir un workflow completo de despliegue en cada microservicio, se decidió implementar un enfoque centralizado:
+En lugar de definir un workflow completo en cada microservicio, se adoptó un enfoque **centralizado**:
 
 - Cada microservicio contiene un workflow **mínimo**
 - Toda la lógica de despliegue se encuentra en este repositorio (`devops-workflows`)
@@ -56,11 +60,12 @@ El flujo de despliegue está compuesto por **tres niveles de workflows**.
 
 ### 3.1 Workflow del microservicio
 
-Cada microservicio debe contener un workflow en:
+Cada microservicio debe contener un workflow ubicado en:
 
 ```
-.github/workflows/ECPAY2-ms-deploy.yml
+.github/workflows/{Sistema}-ms-deploy.yml
 ```
+Donde `Sistema` corresponde al nombre del sistema (por ejemplo: `ECPAY2`).
 
 Este workflow:
 - Se ejecuta ante cualquier `push` al repositorio
@@ -69,7 +74,7 @@ Este workflow:
 
 Este archivo puede ser **idéntico en todos los microservicios**.
 
-**Ejemplo:**
+**Ejemplo `ECPAY2-ms-deploy.yml`**
 
 ```yaml
 name: ECPAY2 Deploy Microservice
@@ -84,7 +89,7 @@ jobs:
 ```
 
 **Nota:**  
-Si se desea un control más granular (por ejemplo, solo ciertas ramas), esto puede ajustarse aquí.  
+Si se desea un control más granular (por ejemplo, solo ciertas ramas), esto puede ajustarse en este archivo.  
 Sin embargo, la recomendación es mantener el control centralizado en el selector de entorno.
 
 ---
@@ -120,40 +125,118 @@ rd_ecpay_reports_ms_v2
 → se ejecuta ECPAY2-deploy-staging-template.yml
 ```
 
+**Ejemplo `ECPAY2-select-environment-deploy-template.yml`**
+```yaml
+name: ECPAY2 Select deploy environment template
+
+on:
+  workflow_call:
+  
+jobs:
+  deploy_release:
+    if: ${{ github.ref_name == 'release' }}
+    uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/ECPAY2-deploy-release-template.yml@release
+    secrets: inherit
+    
+  deploy_staging:
+    if: ${{ github.ref_name == 'staging' }}
+    uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/ECPAY2-deploy-staging-template.yml@release
+    secrets: inherit
+
+```
 ---
 
-### 3.3 Plantillas de despliegue por entorno
+### 3.3 Workflow de despliegue por entorno
 
 ```
 {Sistema}-deploy-{entorno}-template.yml
 ```
 
-Para cada entorno existe una plantilla específica que contiene los pasos técnicos del despliegue.
+Para cada entorno existe una plantilla específica en `devops-workflows` que contiene los pasos técnicos del despliegue.
 
 **Ejemplos en ECPAY2:**
 
-- ECPAY2-deploy-staging-template.yml
-- ECPAY2-deploy-release-template.yml
+- Entorno de pruebas (staging): `ECPAY2-deploy-staging-template.yml`
+- Entorno productivo (release): `ECPAY2-deploy-release-template.yml`
 
 Estas plantillas se encargan de:
 
-- Conectarse al servidor correspondiente (EC2 de pruebas o productivo)
+- Conectarse al servidor correspondiente
 - Navegar a la carpeta donde se encuentra el microservicio
 - Actualizar el código desde GitHub (git pull)
 - Ejecutar el script `tool_deploy.sh`
 - Finalizar el despliegue
 
----
+**Ejemplo `ECPAY2-deploy-staging-template.yml`**
+```yaml
+name: ECPAY2 Deploy to Staging EC2
 
-## 4. Convención crítica de nombres
+on:
+  workflow_call:
+    secrets:
+      EC2_TEST_HOST:
+        required: true
+      EC2_TEST_USER:
+        required: true
+      EC2_TEST_SSH_KEY:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # --- Paso 1: Configurar variables útiles
+      - name: Print context info
+        run: |
+          echo "Repo: ${{ github.event.repository.name }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+
+      # --- Paso 2: Crear y proteger la llave privada temporal
+      - name: Set up SSH key
+        run: |
+          echo "${{ secrets.EC2_TEST_SSH_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+
+      # --- Paso 3: Conectarse al servidor y ejecutar el despliegue
+      - name: Deploy to EC2 (staging)
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+          BRANCH_NAME: ${{ github.ref_name }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.EC2_TEST_USER }}@${{ secrets.EC2_TEST_HOST }} << EOF
+            set -e  # Terminar el script si algo falla
+
+            echo "==> Conectado a la máquina de pruebas AWS"
+
+            cd ~/ecpay/ECPAY2_RD/${REPO_NAME}
+
+            echo "==> Actualizando código desde Git..."
+            git fetch origin ${BRANCH_NAME}
+            git checkout ${BRANCH_NAME}
+            git pull origin ${BRANCH_NAME}
+
+            echo "==> Asignando permisos de ejecución al script de despliegue..."
+            chmod +x tool_deploy.sh
+
+            echo "==> Ejecutando tool_deploy.sh..."
+            ./tool_deploy.sh
+
+            echo "==> Despliegue completado exitosamente"
+          EOF
+
+      # --- Paso 4: Limpieza de la llave privada
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f private_key.pem
+```
 
 ⚠️ **IMPORTANTE**
 
 Para que el flujo funcione correctamente en ECPAY2, es obligatorio que:
 
-- El nombre del repositorio  
-  **Coincida exactamente con**  
-  el nombre de la carpeta donde se encuentra el microservicio en el servidor de despliegue
+- El nombre del repositorio **coincida exactamente con** el nombre de la carpeta donde se encuentra el microservicio en el servidor de despliegue
 
 Esto es necesario porque las plantillas de despliegue utilizan la variable:
 
@@ -167,23 +250,7 @@ para localizar automáticamente la carpeta del microservicio en el servidor.
 
 ---
 
-## 5. Archivos requeridos en cada microservicio
-
-Cada microservicio que quiera integrarse al flujo de automatización debe contener exactamente dos archivos clave.
-
-### 5.1 Workflow del microservicio
-
-```
-.github/workflows/ECPAY2-ms-deploy.yml
-```
-
-Este archivo:
-
-- Dispara el flujo de despliegue
-- Invoca el selector de entorno
-- Puede reutilizarse sin cambios en todos los microservicios
-
-### 5.2 Script tool_deploy.sh
+## 4. Script tool_deploy.sh
 
 Este script debe ubicarse en la raíz del repositorio del microservicio.
 
@@ -199,7 +266,7 @@ Este script:
 - Asume que el `docker-compose.yml` del sistema se encuentra un nivel arriba
 - Puede variar según la tecnología del microservicio (Java, Node, frontend, etc.)
 
-**Ejemplo: rd_ecpay_reports_ms_v2**
+**Ejemplo: rd_ecpay_reports_ms_v2 (SpringBoot)**
 
 ```bash
 #!/bin/bash
@@ -221,7 +288,7 @@ sudo docker-compose up -d reports_v2_service
 
 ---
 
-## 6. Ejemplo completo del flujo de despliegue
+## 5. Ejemplo completo del flujo de despliegue (ECPAY2)
 
 1. Se acepta un Pull Request en la rama `staging`
 2. GitHub dispara el workflow `ECPAY2-ms-deploy.yml`
@@ -234,4 +301,27 @@ sudo docker-compose up -d reports_v2_service
     - Ejecuta `git pull origin staging`
     - Ejecuta el script `tool_deploy.sh`
     - El contenedor actualizado queda desplegado
-    - El proceso de despliegue finaliza exitosamente
+7. El proceso de despliegue finaliza exitosamente
+
+## 6. Secretos (nivel Organización)
+
+Para garantizar la **seguridad de la infraestructura** y evitar la exposición de credenciales sensibles en los repositorios, este flujo de automatización hace uso de **GitHub Secrets definidos a nivel de organización**.
+
+El uso de secretos permite:
+
+- Proteger claves privadas SSH
+- Evitar exponer usuarios, hosts o llaves en texto plano
+- Centralizar la gestión de credenciales de despliegue
+- Facilitar la rotación de credenciales sin modificar workflows
+- Reutilizar las mismas credenciales en múltiples repositorios y microservicios
+
+Todos los workflows reutilizables definidos en este repositorio (`devops-workflows`) **asumen que los secretos existen previamente a nivel organización**, y que los repositorios consumidores heredan dichos secretos mediante la opción `secrets: inherit`.
+
+### 6.1 Consideraciones de seguridad
+
+- Las claves privadas **nunca** deben versionarse en los repositorios
+- Los secretos solo deben ser visibles para los repositorios autorizados
+- Se recomienda rotar las claves periódicamente
+- Cualquier cambio en credenciales debe realizarse únicamente en los secretos de la organización, sin modificar los workflows
+
+Este enfoque garantiza un flujo de despliegue **seguro, controlado y escalable** para todos los sistemas de Evolution Consulting.
