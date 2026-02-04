@@ -42,7 +42,7 @@ jobs:
             echo "==> Conectado al Bastión"
 
             echo "==> Conectando a EC2 Productivo con connect-to-ecpay..."
-            connect-to-ecpay
+            bash /home/ec2-user/ecpay/conexion_ec2_ecpay.sh
 
             echo "==> Conectado exitosamente a EC2 Productivo"
 
