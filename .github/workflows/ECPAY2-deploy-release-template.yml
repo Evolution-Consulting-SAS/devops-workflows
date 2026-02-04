@@ -1,19 +1,13 @@
 name: ECPAY2 Deploy to Production EC2 via Bastion
 
 on:
-  workflow_call:   
+  workflow_call:
     secrets:
-      BASTION_SSH_KEY:
-        required: true
       BASTION_HOST:
         required: true
       BASTION_USER:
         required: true
-      EC2_PROD_SSH_KEY:
-        required: true
-      EC2_PROD_HOST:
-        required: true
-      EC2_PROD_USER:
+      BASTION_SSH_KEY:
         required: true
 
 jobs:
@@ -21,40 +15,54 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    
-      - name: Configure Bastion SSH key
+      # --- Paso 1: Contexto
+      - name: Print context info
+        run: |
+          echo "Repo: ${{ github.event.repository.name }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+
+      # --- Paso 2: Llave SSH del bastión
+      - name: Set up Bastion SSH key
         run: |
           echo "${{ secrets.BASTION_SSH_KEY }}" > bastion_key.pem
           chmod 600 bastion_key.pem
 
-      - name: Deploy through Bastion
+      # --- Paso 3: Deploy vía bastión usando connect-to-ecpay
+      - name: Deploy to Production via Bastion
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+          BRANCH_NAME: ${{ github.ref_name }}
         run: |
-          ssh -o StrictHostKeyChecking=no -i bastion_key.pem ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} << 'EOF'
-            set -e
+          ssh -o StrictHostKeyChecking=no \
+              -i bastion_key.pem \
+              ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} << EOF
 
+            set -e
             echo "==> Conectado al Bastión"
 
-            # Crear temporalmente la llave de conexión a producción
-            echo "${{ secrets.EC2_PROD_SSH_KEY }}" > prod_key.pem
-            chmod 600 prod_key.pem
+            echo "==> Conectando a EC2 Productivo con connect-to-ecpay..."
+            connect-to-ecpay
 
-            # Conectarse al servidor productivo desde el bastión
-            ssh -o StrictHostKeyChecking=no -i prod_key.pem ${{ secrets.EC2_PROD_USER }}@${{ secrets.EC2_PROD_HOST }} << 'INNER_EOF'
-              set -e
-              echo "==> Conectado al servidor productivo"
+            echo "==> Conectado exitosamente a EC2 Productivo"
 
-              cd ecpay/ECPAY2_RD/${{ inputs.PROJECT_FOLDER }}
-              git pull origin release
-              cd ..
+            # cd ~/ecpay/ECPAY2_RD/${REPO_NAME}
 
-              sudo mvn -f ${{ inputs.PROJECT_FOLDER }}/pom.xml clean package -DskipTests
-              sudo docker-compose down ${{ inputs.DOCKER_SERVICE_NAME }}
-              sudo docker-compose build ${{ inputs.DOCKER_SERVICE_NAME }}
-              sudo docker-compose up -d ${{ inputs.DOCKER_SERVICE_NAME }}
+            # echo "==> Actualizando código desde Git..."
+            # git fetch origin ${BRANCH_NAME}
+            # git checkout ${BRANCH_NAME}
+            # git pull origin ${BRANCH_NAME}
 
-              echo "==> Despliegue completado exitosamente"
-            INNER_EOF
+            # echo "==> Permisos al script de despliegue..."
+            # chmod +x tool_deploy.sh
 
-            # Eliminar llave temporal por seguridad
-            rm -f prod_key.pem
+            # echo "==> Ejecutando tool_deploy.sh..."
+            # ./tool_deploy.sh
+
+            # echo "==> Despliegue a PRODUCCIÓN completado exitosamente"
           EOF
+
+      # --- Paso 4: Limpieza
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f bastion_key.pem
