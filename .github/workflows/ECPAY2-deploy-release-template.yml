@@ -3,11 +3,11 @@ name: ECPAY2 Deploy to Production EC2 via Bastion
 on:
   workflow_call:
     secrets:
-      BASTION_HOST:
+      ECPAY2_BASTION_HOST:
         required: true
-      BASTION_USER:
+      ECPAY2_BASTION_USER:
         required: true
-      BASTION_SSH_KEY:
+      ECPAY2_BASTION_SSH_KEY:
         required: true
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
       # --- Paso 2: Llave SSH del bastión
       - name: Set up Bastion SSH key
         run: |
-          echo "${{ secrets.BASTION_SSH_KEY }}" > bastion_key.pem
+          echo "${{ secrets.ECPAY2_BASTION_SSH_KEY }}" > bastion_key.pem
           chmod 600 bastion_key.pem
 
       # --- Paso 3: Deploy vía bastión usando connect-to-ecpay
@@ -36,12 +36,12 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no \
               -i bastion_key.pem \
-              ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} << EOF
+              ${{ secrets.ECPAY2_BASTION_USER }}@${{ secrets.ECPAY2_BASTION_HOST }} << EOF
 
             set -e
             echo "==> Conectado al Bastión"
 
-            echo "==> Conectando a EC2 Productivo con connect-to-ecpay..."
+            echo "==> Conectando a EC2 Productivo..."
             bash /home/ec2-user/ecpay/conexion_ec2_ecpay.sh
 
             echo "==> Conectado exitosamente a EC2 Productivo"
