@@ -44,7 +44,8 @@ jobs:
             echo "==> Actualizando código desde Git..."
             git fetch origin ${BRANCH_NAME}
             git checkout ${BRANCH_NAME}
-            git pull origin ${BRANCH_NAME}
+            git reset --hard origin/${BRANCH_NAME}
+            git clean -fd
 
             echo "==> Asignando permisos de ejecución al script de despliegue..."
             chmod +x tool_deploy.sh
