@@ -10,7 +10,7 @@ jobs:
     secrets: inherit
     
   deploy_staging:
-    if: ${{ github.ref_name == 'staging' }}
+    if: ${{ github.ref_name == 'development' }}
     uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/ECPAY2-deploy-staging-template.yml@release
     secrets: inherit
 
