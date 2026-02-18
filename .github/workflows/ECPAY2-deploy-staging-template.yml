@@ -42,10 +42,14 @@ jobs:
             cd ~/ecpay/ECPAY2_RD/${REPO_NAME}
 
             echo "==> Actualizando código desde Git..."
-            git fetch origin ${BRANCH_NAME}
-            git checkout ${BRANCH_NAME}
-            git reset --hard origin/${BRANCH_NAME}
+            git fetch origin
+
+            git reset --hard
             git clean -fd
+            
+            git checkout ${BRANCH_NAME}
+            
+            git reset --hard origin/${BRANCH_NAME}
 
             echo "==> Asignando permisos de ejecución al script de despliegue..."
             chmod +x tool_deploy.sh
