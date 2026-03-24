@@ -1,0 +1,26 @@
+name: ECPAY2 Select manual deploy environment template
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        required: true
+        type: string
+      environment:
+        required: true
+        type: string
+
+jobs:
+  manual_deploy_release:
+    if: ${{ inputs.environment == 'release' }}
+    uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/ECPAY2-deploy-release-template.yml@release
+    with:
+      branch: ${{ inputs.branch }}
+    secrets: inherit
+
+  manual_deploy_staging:
+    if: ${{ inputs.environment == 'staging' }}
+    uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/ECPAY2-deploy-staging-template.yml@release
+    with:
+      branch: ${{ inputs.branch }}
+    secrets: inherit
