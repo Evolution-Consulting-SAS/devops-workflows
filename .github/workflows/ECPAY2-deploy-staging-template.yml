@@ -2,6 +2,10 @@ name: ECPAY2 Deploy to Staging EC2
 
 on:
   workflow_call:
+    inputs:
+      branch:
+        required: false
+        type: string
     secrets:
       ECPAY2_EC2_TEST_HOST:
         required: true
@@ -19,7 +23,8 @@ jobs:
       - name: Print context info
         run: |
           echo "Repo: ${{ github.event.repository.name }}"
-          echo "Branch: ${{ github.ref_name }}"
+          echo "Branch (ref): ${{ github.ref_name }}"
+          echo "Branch (input): ${{ inputs.branch }}"
           echo "Commit: ${{ github.sha }}"
 
       # --- Paso 2: Crear y proteger la llave privada temporal
@@ -32,8 +37,10 @@ jobs:
       - name: Deploy to EC2 (staging)
         env:
           REPO_NAME: ${{ github.event.repository.name }}
-          BRANCH_NAME: ${{ github.ref_name }}
+          BRANCH_NAME: ${{ inputs.branch || github.ref_name }}
         run: |
+          echo "==> Rama seleccionada: $BRANCH_NAME"
+          
           ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.ECPAY2_EC2_TEST_USER }}@${{ secrets.ECPAY2_EC2_TEST_HOST }} << EOF
             set -e  # Terminar el script si algo falla
 
