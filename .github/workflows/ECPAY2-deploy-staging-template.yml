@@ -15,7 +15,7 @@ on:
         required: true
 
 jobs:
-  staging-env-deploy:
+  test-env-deploy:
     runs-on: ubuntu-latest
 
     steps:
