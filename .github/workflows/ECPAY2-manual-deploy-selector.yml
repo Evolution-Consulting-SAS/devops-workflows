@@ -11,16 +11,51 @@ on:
         type: string
 
 jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      mapped_env: ${{ steps.resolve.outputs.env }}
+      branch: ${{ steps.resolve.outputs.branch }}
+
+    steps:
+      - name: Resolve inputs
+        id: resolve
+        run: |
+          INPUT_BRANCH="${{ inputs.branch }}"
+          INPUT_ENV="${{ inputs.environment }}"
+
+          echo "==> Input branch: $INPUT_BRANCH"
+          echo "==> Input environment: $INPUT_ENV"
+
+          # 🔹 Mapping environment
+          case "$INPUT_ENV" in
+            test)
+              ENV="staging"
+              ;;
+            productive)
+              ENV="release"
+              ;;
+            *)
+              echo "Invalid environment: $INPUT_ENV"
+              exit 1
+              ;;
+          esac          
+
+          echo "env=$ENV" >> $GITHUB_OUTPUT
+          echo "branch=$INPUT_BRANCH" >> $GITHUB_OUTPUT
+
   manual_deploy_release:
-    if: ${{ inputs.environment == 'release' }}
+    needs: resolve
+    if: ${{ needs.resolve.outputs.mapped_env == 'release' }}
     uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/ECPAY2-deploy-release-template.yml@release
     with:
-      branch: ${{ inputs.branch }}
+      branch: ${{ needs.resolve.outputs.branch }}
     secrets: inherit
 
   manual_deploy_staging:
-    if: ${{ inputs.environment == 'staging' }}
+    needs: resolve
+    if: ${{ needs.resolve.outputs.mapped_env == 'staging' }}
     uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/ECPAY2-deploy-staging-template.yml@release
     with:
-      branch: ${{ inputs.branch }}
+      branch: ${{ needs.resolve.outputs.branch }}
     secrets: inherit
