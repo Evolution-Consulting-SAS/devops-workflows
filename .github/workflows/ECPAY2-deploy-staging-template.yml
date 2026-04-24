@@ -68,7 +68,7 @@ jobs:
             git reset --hard origin/${BRANCH_NAME}
             
             echo "==> Permisos al script de despliegue..."
-            chmod +x tool_deploy.sh
+            sudo chmod +x tool_deploy.sh
 
             echo "==> Ejecutando tool_deploy.sh..."
             ./tool_deploy.sh
