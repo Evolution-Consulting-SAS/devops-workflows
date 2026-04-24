@@ -61,7 +61,7 @@ jobs:
             git fetch origin
 
             git reset --hard
-            git clean -fd
+            git clean -fd -e .env -e .env.*
             
             git checkout ${BRANCH_NAME}
             
