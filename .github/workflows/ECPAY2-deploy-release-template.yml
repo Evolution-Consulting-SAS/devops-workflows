@@ -35,12 +35,18 @@ jobs:
 
       # --- Paso 3: Deploy vía bastión usando connect-to-ecpay
       - name: Deploy to Production via Bastion
+        timeout-minutes: 2
         env:
           REPO_NAME: ${{ github.event.repository.name }}
           BRANCH_NAME: ${{ inputs.branch || github.ref_name }}
         run: |
           echo "==> Rama seleccionada: $BRANCH_NAME"
-          ssh -o StrictHostKeyChecking=no \
+          ssh \
+              -o StrictHostKeyChecking=no \
+              -o ConnectTimeout=10 \
+              -o ConnectionAttempts=2 \
+              -o ServerAliveInterval=5 \
+              -o ServerAliveCountMax=2 \
               -i bastion_key.pem \
               ${{ secrets.ECPAY2_BASTION_USER }}@${{ secrets.ECPAY2_BASTION_HOST }} << EOF
 
