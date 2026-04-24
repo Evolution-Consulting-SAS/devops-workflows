@@ -63,7 +63,7 @@ jobs:
             echo "==> Actualizando código desde Git..."
             git fetch origin
             git reset --hard
-            git clean -fd            
+            git clean -fd -e .env -e .env.*            
             git checkout ${BRANCH_NAME}            
             git reset --hard origin/${BRANCH_NAME}
 
