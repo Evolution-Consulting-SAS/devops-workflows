@@ -1,0 +1,28 @@
+name: ECPAY2 Manual Deploy Microservice
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Rama a desplegar'
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - release
+      environment:
+        description: 'Entorno destino despliegue'
+        required: true
+        type: choice
+        options:
+          - test
+          - productive
+
+jobs:
+  manual-deploy:
+    uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/ECPAY2-manual-deploy-selector.yml@release
+    with:
+      branch: ${{ github.event.inputs.branch }}
+      environment: ${{ github.event.inputs.environment }}
+    secrets: inherit
