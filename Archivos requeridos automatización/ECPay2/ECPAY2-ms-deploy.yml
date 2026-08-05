@@ -1,0 +1,9 @@
+name: ECPAY2 Deploy Microservice
+
+on:
+  push:
+
+jobs:
+  deploy:
+    uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/ECPAY2-select-environment-deploy-template.yml@release
+    secrets: inherit
