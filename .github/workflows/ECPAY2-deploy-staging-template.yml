@@ -1,4 +1,4 @@
-name: ECPAY2 Deploy to Staging EC2
+name: ECPAY2 Deploy to Staging EC2 via Bastion
 
 on:
   workflow_call:
@@ -7,76 +7,79 @@ on:
         required: false
         type: string
     secrets:
-      ECPAY2_EC2_TEST_HOST:
+      ECPAY2_TEST_BASTION_HOST:
+        required: true           
+      ECPAY2_TEST_BASTION_USER:
         required: true
-      ECPAY2_EC2_TEST_USER:
-        required: true
-      ECPAY2_EC2_TEST_SSH_KEY:
+      ECPAY2_TEST_BASTION_SSH_KEY:
         required: true
 
 jobs:
   test-env-deploy:
     runs-on: ubuntu-latest
-
+  
     steps:
-      # --- Paso 1: Configurar variables útiles
+      # --- Paso 1: Mostrar información del contexto
       - name: Print context info
         run: |
           echo "Repo: ${{ github.event.repository.name }}"
           echo "Branch (ref): ${{ github.ref_name }}"
           echo "Branch (input): ${{ inputs.branch }}"
           echo "Commit: ${{ github.sha }}"
-
-      # --- Paso 2: Crear y proteger la llave privada temporal
-      - name: Set up SSH key
+    
+      # --- Paso 2: Configurar la llave SSH del bastión
+      - name: Set up Bastion SSH key
         run: |
-          echo "${{ secrets.ECPAY2_EC2_TEST_SSH_KEY }}" > private_key.pem
-          chmod 600 private_key.pem
-
-      # --- Paso 3: Conectarse al servidor y ejecutar el despliegue
-      - name: Deploy to EC2 (staging)
+          echo "${{ secrets.ECPAY2_TEST_BASTION_SSH_KEY }}" > bastion_key.pem
+          chmod 600 bastion_key.pem
+    
+      # --- Paso 3: Conectarse al bastión y desplegar en la EC2 privada
+      - name: Deploy to Staging via Bastion
         timeout-minutes: 2
         env:
           REPO_NAME: ${{ github.event.repository.name }}
           BRANCH_NAME: ${{ inputs.branch || github.ref_name }}
         run: |
           echo "==> Rama seleccionada: $BRANCH_NAME"
-          
+    
           ssh \
-          -o StrictHostKeyChecking=no \
-          -o ConnectTimeout=10 \
-          -o ConnectionAttempts=2 \
-          -o ServerAliveInterval=5 \
-          -o ServerAliveCountMax=2 \
-          -i private_key.pem \
-          ${{ secrets.ECPAY2_EC2_TEST_USER }}@${{ secrets.ECPAY2_EC2_TEST_HOST }} << EOF
-          
-            set -e  # Terminar el script si algo falla
-
-            echo "==> Conectado a la máquina de pruebas AWS"
-
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=10 \
+            -o ConnectionAttempts=2 \
+            -o ServerAliveInterval=5 \
+            -o ServerAliveCountMax=2 \
+            -i bastion_key.pem \
+            ${{ secrets.ECPAY2_TEST_BASTION_USER }}@${{ secrets.ECPAY2_TEST_BASTION_HOST }} << EOF
+    
+            set -e
+    
+            echo "==> Conectado al Bastión de Pruebas"
+    
+            echo "==> Conectando a la EC2 privada de Pruebas..."
+            bash /home/ec2-user/ECPay2-test/connect-to-test-server
+    
+            echo "==> Conectado exitosamente a la EC2 de Pruebas"
+    
             cd ~/ecpay/ECPAY2_RD/${REPO_NAME}
-
+    
             echo "==> Actualizando código desde Git..."
             git fetch origin
-
             git reset --hard
             git clean -fd -e .env -e .env.*
-            
+    
             git checkout ${BRANCH_NAME}
-            
             git reset --hard origin/${BRANCH_NAME}
-            
+    
             echo "==> Permisos al script de despliegue..."
             sudo chmod +x tool_deploy.sh
-
+    
             echo "==> Ejecutando tool_deploy.sh..."
             ./tool_deploy.sh
-
-            echo "==> Despliegue completado exitosamente"
+    
+            echo "==> Despliegue a PRUEBAS completado exitosamente"
           EOF
-
-      # --- Paso 4: Limpieza de la llave privada
+    
+      # --- Paso 4: Eliminar la llave privada temporal
       - name: Clean up SSH key
         if: always()
-        run: rm -f private_key.pem
+        run: rm -f bastion_key.pem
