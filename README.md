@@ -306,7 +306,99 @@ sudo docker-compose up -d reports_v2_service
 ### Diagrama del flujo de despliegue
 ![Diagrama del flujo de despliegue](DiagramaDevops.png)
 
-## 6. Secretos (nivel Organización)
+## 6. Workflow de despliegue manual
+
+Además del flujo de despliegue automático activado mediante cambios en las ramas principales, cada microservicio puede incluir un workflow de **despliegue manual**.
+
+Este workflow permite ejecutar un despliegue bajo demanda desde la pestaña **Actions** de GitHub, seleccionando:
+
+* La rama que se desea desplegar.
+* El entorno de destino: **pruebas** (`test`) o **producción** (`productive`).
+
+El workflow debe ubicarse dentro de cada repositorio de microservicio en la siguiente ruta:
+
+```text
+.github/workflows/ECPAY2-ms-manual-deploy.yml
+```
+
+El workflow mínimo utilizado por los microservicios es el siguiente:
+
+```yaml
+name: ECPAY2 Manual Deploy Microservice
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Rama a desplegar'
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - release
+      environment:
+        description: 'Entorno destino despliegue'
+        required: true
+        type: choice
+        options:
+          - test
+          - productive
+
+jobs:
+  manual-deploy:
+    uses: Evolution-Consulting-SAS/devops-workflows/.github/workflows/ECPAY2-manual-deploy-selector.yml@release
+    with:
+      branch: ${{ github.event.inputs.branch }}
+      environment: ${{ github.event.inputs.environment }}
+    secrets: inherit
+```
+
+El workflow anterior únicamente recopila los parámetros seleccionados por el usuario y delega la lógica de selección y despliegue en el workflow reutilizable:
+
+```text
+ECPAY2-manual-deploy-selector.yml
+```
+
+Este enfoque mantiene centralizada la lógica de despliegue y evita que cada microservicio tenga que implementar nuevamente la selección de la rama y el entorno.
+
+### 6.1 Restricción de ramas
+
+Actualmente, el selector de ramas se limita a las ramas principales definidas en el flujo Gitflow utilizado por Evolution Consulting:
+
+* `development`
+* `staging`
+* `release`
+
+Esta restricción se mantiene de forma intencional para fomentar el uso del flujo de trabajo recomendado por la empresa y evitar despliegues accidentales desde ramas temporales, de funcionalidades o de correcciones.
+
+Sin embargo, el workflow puede modificarse para permitir que el usuario ingrese manualmente el nombre de cualquier rama que desee desplegar.
+
+Para habilitar este comportamiento, se debe reemplazar la configuración actual:
+
+```yaml
+branch:
+  description: 'Rama a desplegar'
+  required: true
+  type: choice
+  options:
+    - development
+    - staging
+    - release
+```
+
+por la siguiente:
+
+```yaml
+branch:
+  description: 'Nombre de la rama a desplegar'
+  required: true
+  type: string
+```
+
+Con esta modificación, GitHub Actions mostrará un campo de texto en lugar de una lista de opciones, permitiendo ingresar cualquier nombre de rama existente en el repositorio.
+
+## 7. Secretos (nivel Organización)
 
 Para garantizar la **seguridad de la infraestructura** y evitar la exposición de credenciales sensibles en los repositorios, este flujo de automatización hace uso de **GitHub Secrets definidos a nivel de organización**.
 
@@ -320,7 +412,7 @@ El uso de secretos permite:
 
 Todos los workflows reutilizables definidos en este repositorio (`devops-workflows`) **asumen que los secretos existen previamente a nivel organización**, y que los repositorios consumidores heredan dichos secretos mediante la opción `secrets: inherit`.
 
-### 6.1 Consideraciones de seguridad
+### 7.1 Consideraciones de seguridad
 
 - Las claves privadas **nunca** deben versionarse en los repositorios
 - Los secretos solo deben ser visibles para los repositorios autorizados
